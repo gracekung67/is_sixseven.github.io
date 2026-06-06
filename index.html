@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Classroom Stealth: Mobile Perfect Aspect Ratio</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            /* เปลี่ยนเป็นสีดำสนิทเพื่อเน้นขอบจอเกม */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        /* --- แก้ไขสัดส่วนหน้าจอตรงนี้ --- */
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background-color: #3e2723;
+            border: 4px solid #fff;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            aspect-ratio: 4 / 3;
+            /* ล็อกสัดส่วนตัวกล่องเกมไว้ที่ 4:3 */
+        }
+
+        canvas {
+            display: block;
+            background-color: #d7ccc8;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- SCREEN MANAGEMENT --- */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 15;
+            text-align: center;
+            padding: 15px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #ffeb3b;
+            margin: 0 0 8px 0;
+            text-shadow: 2px 2px #000;
+        }
+
+        p.desc {
+            font-size: 0.85rem;
+            margin: 0 0 15px 0;
+            color: #e0e0e0;
+            max-width: 480px;
+            line-height: 1.4;
+        }
+
+        button.main-btn {
+            padding: 12px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px #2e7d32;
+            z-index: 20;
+        }
+
+        button.main-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #2e7d32;
+        }
+
+        .char-select-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .char-card {
+            background: #2d2d2d;
+            border: 3px solid #555;
+            border-radius: 8px;
+            padding: 10px;
+            width: 140px;
+            cursor: pointer;
+        }
+
+        .char-card.selected {
+            border-color: #4caf50;
+            background: #1b3a1e;
+        }
+
+        .char-card h3 {
+            margin: 0 0 4px 0;
+            font-size: 0.95rem;
+            color: #fff;
+        }
+
+        .char-card p {
+            margin: 0;
+            font-size: 0.7rem;
+            color: #aaa;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 45px;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            z-index: 5;
+        }
+
+        .meter-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            width: 28%;
+        }
+
+        .meter-bg {
+            flex-grow: 1;
+            height: 10px;
+            background: #444;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #666;
+        }
+
+        .meter-fill {
+            height: 100%;
+            width: 0%;
+        }
+
+        #boredom-fill {
+            background: #ff9800;
+        }
+
+        #happiness-fill {
+            background: #e91e63;
+        }
+
+        #timer-fill {
+            background: #2196f3;
+        }
+
+        #lives-display {
+            color: #f44336;
+            font-size: 0.95rem;
+        }
+
+        /* มินิเกม */
+        #phone-overlay {
+            position: absolute;
+            bottom: 15px;
+            right: 110px;
+            width: 140px;
+            height: 190px;
+            background: #111;
+            border: 4px solid #444;
+            border-radius: 12px;
+            z-index: 8;
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+        }
+
+        #phone-screen {
+            background: #222;
+            flex-grow: 1;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px;
+        }
+
+        #math-question {
+            font-size: 1rem;
+            font-weight: bold;
+            margin: 2px 0;
+        }
+
+        .phone-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .phone-btn {
+            padding: 6px 2px;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        /* --- MOBILE CONTROLS --- */
+        #mobile-dpad {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            display: grid;
+            grid-template-columns: 48px 48px 48px;
+            grid-template-rows: 48px 48px;
+            gap: 4px;
+            z-index: 10;
+        }
+
+        .dpad-btn {
+            background: rgba(255, 255, 255, 0.22);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #btn-up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        #btn-left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        #btn-down {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        #btn-right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        #btn-phone-action {
+            position: absolute;
+            bottom: 25px;
+            right: 20px;
+            width: 65px;
+            height: 65px;
+            background: rgba(33, 150, 243, 0.35);
+            border: 3px solid #2196f3;
+            border-radius: 50%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.65rem;
+            font-weight: bold;
+        }
+
+        /* ==========================================================
+       CSS AUTO-SCALE RESPONSIVE (แก้บั๊กภาพบีบและยืดบนมือถือ)
+       ========================================================== */
+        @media (max-width: 850px),
+        (max-height: 650px) {
+            #game-container {
+                /* บังคับย่อขยายแบบคงอัตราส่วน 4:3 และไม่ให้ภาพแตกเบี้ยว */
+                width: 100vw !important;
+                height: 75vw !important;
+                max-height: 100vh !important;
+                max-width: 133.33vh !important;
+                /* สัดส่วนย้อนกลับของ 4:3 เพื่อไม่ให้จอล้นแนวตั้ง */
+                border: none;
+                border-radius: 0;
+            }
+
+            h1 {
+                font-size: 1.4rem !important;
+                margin-bottom: 2px !important;
+            }
+
+            p.desc {
+                font-size: 0.7rem !important;
+                margin-bottom: 8px !important;
+                max-width: 400px;
+            }
+
+            .char-select-container {
+                margin-bottom: 10px !important;
+                gap: 8px !important;
+            }
+
+            .char-card {
+                width: 110px !important;
+                padding: 5px !important;
+                border-width: 2px !important;
+            }
+
+            .char-card h3 {
+                font-size: 0.8rem !important;
+            }
+
+            .char-card p {
+                font-size: 0.6rem !important;
+            }
+
+            button.main-btn {
+                padding: 8px 20px !important;
+                font-size: 0.95rem !important;
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div id="game-container">
+        <div id="hud" class="hidden">
+            <div id="lives-display">❤️✖3</div>
+            <div class="meter-container"><span>เบื่อ:</span>
+                <div class="meter-bg">
+                    <div id="boredom-fill" class="meter-fill"></div>
+                </div>
+            </div>
+            <div class="meter-container"><span>สุข:</span>
+                <div class="meter-bg">
+                    <div id="happiness-fill" class="meter-fill"></div>
+                </div>
+            </div>
+            <div class="meter-container"><span>เวลาวิชา:</span>
+                <div class="meter-bg">
+                    <div id="timer-fill" class="meter-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="screen">
+            <h1>Classroom Stealth</h1>
+            <p class="desc">เอาชีวิตรอด 60 วินาที! ห้ามง่วงจนหลับเกิน 3 วินาที และห้ามเดินไปมาหรืออยู่นอกโต๊ะตอนครูหันมา
+                (ตัวสีแดง) แอบกินขนมบนพื้นหรือเล่นมือถือแก้เบื่อได้!</p>
+
+            <div class="char-select-container">
+                <div class="char-card selected" id="char-junior" onclick="selectCharacter('junior')">
+                    <h3>ม.ต้น (Junior)</h3>
+                    <p>ตัวเล็ก เดินไว แต่เบื่อง่ายมาก</p>
+                </div>
+                <div class="char-card" id="char-senior" onclick="selectCharacter('senior')">
+                    <h3>ม.ปลาย (Senior)</h3>
+                    <p>ตัวใหญ่ เดินช้าลง แต่ความเบื่อขึ้นช้า</p>
+                </div>
+            </div>
+            <button id="start-btn" class="main-btn" ontouchstart="startGame(event)"
+                onclick="startGame(event)">เริ่มคาบเรียน</button>
+        </div>
+
+        <div id="mobile-dpad" class="hidden">
+            <div class="dpad-btn" id="btn-up">▲</div>
+            <div class="dpad-btn" id="btn-left">◀</div>
+            <div class="dpad-btn" id="btn-down">▼</div>
+            <div class="dpad-btn" id="btn-right">▶</div>
+        </div>
+        <div id="btn-phone-action" class="hidden">📱<br>เปิดมือถือ</div>
+
+        <div id="phone-overlay" class="hidden">
+            <div id="phone-screen">
+                <div style="font-size:0.55rem; color:#4caf50; font-weight:bold;">📲 GAME.EXE</div>
+                <div id="math-question">0 + 0 = ?</div>
+                <div class="phone-buttons">
+                    <button class="phone-btn" ontouchstart="handlePhoneClick(0, event)"
+                        onclick="checkAnswer(0)"></button>
+                    <button class="phone-btn" ontouchstart="handlePhoneClick(1, event)"
+                        onclick="checkAnswer(1)"></button>
+                    <button class="phone-btn" ontouchstart="handlePhoneClick(2, event)"
+                        onclick="checkAnswer(2)"></button>
+                    <button class="phone-btn" ontouchstart="handlePhoneClick(3, event)"
+                        onclick="checkAnswer(3)"></button>
+                </div>
+                <div style="font-size:0.5rem; color:#888;">(ต้องอยู่ที่โต๊ะ)</div>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="screen hidden">
+            <h1 style="color: #f44336;">โดนจับคัดลายมือ!</h1>
+            <p id="game-over-reason" style="margin-bottom:20px;">คุณทำตัวไม่เนียนจนครูจับได้</p>
+            <button class="main-btn" ontouchstart="resetToMenu(event)"
+                onclick="resetToMenu(event)">กลับหน้าหลัก</button>
+        </div>
+
+        <div id="victory-screen" class="screen hidden">
+            <h1 style="color: #4caf50;">หมดคาบเรียน! 🎉</h1>
+            <p style="margin-bottom:20px;">ยินดีด้วย คุณแอบอู้จนหมดคาบเรียนได้อย่างปลอดภัย</p>
+            <button class="main-btn" ontouchstart="resetToMenu(event)"
+                onclick="resetToMenu(event)">เล่นอีกครั้ง</button>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const victoryScreen = document.getElementById('victory-screen');
+        const hud = document.getElementById('hud');
+        const phoneOverlay = document.getElementById('phone-overlay');
+        const mobileDpad = document.getElementById('mobile-dpad');
+        const btnPhoneAction = document.getElementById('btn-phone-action');
+
+        const boredomFill = document.getElementById('boredom-fill');
+        const happinessFill = document.getElementById('happiness-fill');
+        const timerFill = document.getElementById('timer-fill');
+        const livesDisplay = document.getElementById('lives-display');
+
+        let gameState = 'MENU';
+        let selectedType = 'junior';
+        let gameTimer = 60;
+        let lastTime = 0;
+        let accumulatedTime = 0;
+
+        let lives = 3;
+        let boredom = 0;
+        let happiness = 50;
+        let sleepTimer = 0;
+
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        const touchInputs = { up: false, down: false, left: false, right: false };
+        let isPlayingPhone = false;
+
+        const playerDesk = { x: 370, y: 440, width: 60, height: 40 };
+        const desks = [
+            playerDesk,
+            { x: 150, y: 250, width: 60, height: 40 },
+            { x: 370, y: 250, width: 60, height: 40 },
+            { x: 590, y: 250, width: 60, height: 40 },
+            { x: 150, y: 440, width: 60, height: 40 },
+            { x: 590, y: 440, width: 60, height: 40 }
+        ];
+
+        const teacher = { x: 400, y: 80, width: 50, height: 50, state: 'SAFE', stateTimer: 0, nextStateDuration: 4000 };
+        const player = { x: 400, y: 500, radius: 12, speed: 4, isMoving: false };
+
+        let snacks = [];
+        let snackSpawnTimer = 0;
+        let currentCorrectAnswer = 0;
+        let mathChoices = [];
+
+        window.addEventListener('keydown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            if (e.key in keys) keys[e.key] = true;
+            if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); togglePhone(); }
+        });
+        window.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
+
+        function bindTouchBtn(elementId, direction) {
+            const btn = document.getElementById(elementId);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); touchInputs[direction] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); touchInputs[direction] = false; });
+        }
+        bindTouchBtn('btn-up', 'up');
+        bindTouchBtn('btn-down', 'down');
+        bindTouchBtn('btn-left', 'left');
+        bindTouchBtn('btn-right', 'right');
+
+        btnPhoneAction.addEventListener('touchstart', (e) => { e.preventDefault(); togglePhone(); });
+
+        function selectCharacter(type) {
+            if (gameState !== 'MENU') return;
+            selectedType = type;
+            document.getElementById('char-junior').classList.remove('selected');
+            document.getElementById('char-senior').classList.remove('selected');
+            document.getElementById('char-' + type).classList.add('selected');
+        }
+
+        function togglePhone() {
+            if (isAtDesk() && boredom < 100) {
+                isPlayingPhone = !isPlayingPhone;
+                if (isPlayingPhone) {
+                    generateMathQuestion();
+                    phoneOverlay.classList.remove('hidden');
+                } else {
+                    phoneOverlay.classList.add('hidden');
+                }
+            }
+        }
+
+        function isAtDesk() {
+            return (player.x >= playerDesk.x && player.x <= playerDesk.x + playerDesk.width &&
+                player.y >= playerDesk.y && player.y <= playerDesk.y + playerDesk.height);
+        }
+
+        function handlePhoneClick(idx, e) {
+            e.preventDefault();
+            checkAnswer(idx);
+        }
+
+        function startGame(e) {
+            if (e) e.preventDefault();
+            if (gameState === 'PLAYING') return;
+
+            player.radius = (selectedType === 'junior') ? 12 : 16;
+            player.speed = (selectedType === 'junior') ? 4.6 : 3.3;
+            lives = 3; boredom = 0; happiness = 50; gameTimer = 60; sleepTimer = 0; snacks = [];
+            isPlayingPhone = false; phoneOverlay.classList.add('hidden');
+
+            player.x = playerDesk.x + playerDesk.width / 2;
+            player.y = playerDesk.y + playerDesk.height + 15;
+
+            teacher.state = 'SAFE'; teacher.stateTimer = 0;
+            teacher.nextStateDuration = 3000 + Math.random() * 4000;
+
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            victoryScreen.classList.add('hidden');
+            hud.classList.remove('hidden');
+            mobileDpad.classList.remove('hidden');
+            btnPhoneAction.classList.remove('hidden');
+
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetToMenu(e) {
+            if (e) e.preventDefault();
+            gameState = 'MENU';
+            gameOverScreen.classList.add('hidden');
+            victoryScreen.classList.add('hidden');
+            hud.classList.add('hidden');
+            mobileDpad.classList.add('hidden');
+            btnPhoneAction.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        }
+
+        function triggerPenalty(reason) {
+            lives--;
+            isPlayingPhone = false;
+            phoneOverlay.classList.add('hidden');
+
+            if (lives <= 0) {
+                gameState = 'GAMEOVER';
+                document.getElementById('game-over-reason').innerText = reason;
+                gameOverScreen.classList.remove('hidden');
+            } else {
+                player.x = playerDesk.x + playerDesk.width / 2;
+                player.y = playerDesk.y + playerDesk.height + 15;
+                boredom = Math.max(0, boredom - 25);
+                sleepTimer = 0;
+                teacher.state = 'SAFE'; teacher.stateTimer = 0; teacher.nextStateDuration = 3000;
+                alert(`โดนจับได้! ${reason} เหลือหัวใจอีก: ${lives} ดวง`);
+            }
+        }
+
+        function generateMathQuestion() {
+            let num1 = Math.floor(Math.random() * 8) + 2;
+            let num2 = Math.floor(Math.random() * 8) + 2;
+            let correct = num1 + num2;
+            document.getElementById('math-question').innerText = `${num1} + ${num2} = ?`;
+
+            let choices = [correct, correct + 2, correct - 1, correct + 3];
+            choices.sort(() => Math.random() - 0.5);
+            currentCorrectAnswer = correct;
+            mathChoices = choices;
+
+            const buttons = document.querySelectorAll('.phone-btn');
+            buttons.forEach((btn, idx) => { btn.innerText = choices[idx]; });
+        }
+
+        function checkAnswer(idx) {
+            if (!isPlayingPhone || gameState !== 'PLAYING') return;
+            if (mathChoices[idx] === currentCorrectAnswer) {
+                let bonus = (selectedType === 'senior') ? 35 : 20;
+                boredom = Math.max(0, boredom - bonus);
+                happiness = Math.min(100, happiness + 15);
+            } else {
+                boredom = Math.min(100, boredom + 10);
+            }
+            generateMathQuestion();
+        }
+
+        function gameLoop(timestamp) {
+            if (gameState !== 'PLAYING') return;
+            let dt = timestamp - lastTime;
+            if (dt > 100) dt = 16;
+            lastTime = timestamp;
+
+            update(dt);
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update(dt) {
+            accumulatedTime += dt;
+            if (accumulatedTime >= 1000) {
+                gameTimer--;
+                accumulatedTime -= 1000;
+                if (boredom >= 100) {
+                    sleepTimer++;
+                    if (sleepTimer >= 3) { triggerPenalty("คุณหลับกลางห้องเรียนนานเกิน 3 วินาที!"); return; }
+                } else { sleepTimer = 0; }
+
+                if (gameTimer <= 0) { gameState = 'VICTORY'; victoryScreen.classList.remove('hidden'); return; }
+            }
+
+            let rate = (selectedType === 'senior') ? 1.5 : 2.5;
+            let happinessBuffer = 1 - (happiness / 200);
+            boredom += (rate * happinessBuffer) * (dt / 1000);
+            if (boredom > 100) boredom = 100;
+
+            happiness = Math.max(0, happiness - 0.8 * (dt / 1000));
+
+            player.isMoving = false;
+            let dx = 0, dy = 0;
+            if (!isPlayingPhone && boredom < 100) {
+                if (keys.w || keys.ArrowUp || touchInputs.up) { dy = -player.speed; player.isMoving = true; }
+                if (keys.s || keys.ArrowDown || touchInputs.down) { dy = player.speed; player.isMoving = true; }
+                if (keys.a || keys.ArrowLeft || touchInputs.left) { dx = -player.speed; player.isMoving = true; }
+                if (keys.d || keys.ArrowRight || touchInputs.right) { dx = player.speed; player.isMoving = true; }
+            }
+            player.x += dx; player.y += dy;
+
+            if (player.x - player.radius < 0) player.x = player.radius;
+            if (player.x + player.radius > canvas.width) player.x = canvas.width - player.radius;
+            if (player.y - player.radius < 60) player.y = 60 + player.radius;
+            if (player.y + player.radius > canvas.height) player.y = canvas.height - player.radius;
+
+            if (isPlayingPhone && !isAtDesk()) { isPlayingPhone = false; phoneOverlay.classList.add('hidden'); }
+
+            teacher.stateTimer += dt;
+            if (teacher.stateTimer >= teacher.nextStateDuration) {
+                teacher.stateTimer = 0;
+                if (teacher.state === 'SAFE') { teacher.state = 'WARNING'; teacher.nextStateDuration = 1000; }
+                else if (teacher.state === 'WARNING') { teacher.state = 'DANGER'; teacher.nextStateDuration = 2000 + Math.random() * 2000; }
+                else { teacher.state = 'SAFE'; teacher.nextStateDuration = 3000 + Math.random() * 4000; }
+            }
+
+            if (teacher.state === 'DANGER') {
+                if (player.isMoving) { triggerPenalty("คุณขยับตัวตอนครูหันมา!"); return; }
+                if (!isAtDesk()) { triggerPenalty("คุณเดินเล่นนอกโต๊ะตอนครูหันมา!"); return; }
+            }
+
+            snackSpawnTimer += dt;
+            if (snackSpawnTimer >= 5000) {
+                snackSpawnTimer = 0;
+                if (snacks.length < 3 && Math.random() > 0.4) {
+                    snacks.push({
+                        x: 60 + Math.random() * (canvas.width - 120),
+                        y: 160 + Math.random() * (canvas.height - 240),
+                        radius: 8, color: Math.random() > 0.5 ? '#e91e63' : '#ffeb3b'
+                    });
+                }
+            }
+
+            for (let i = snacks.length - 1; i >= 0; i--) {
+                let s = snacks[i];
+                if ((player.x - s.x) ** 2 + (player.y - s.y) ** 2 <= (player.radius + s.radius) ** 2) {
+                    snacks.splice(i, 1);
+                    happiness = Math.min(100, happiness + 20);
+                    boredom = Math.max(0, boredom - 15);
+                }
+            }
+
+            boredomFill.style.width = `${boredom}%`;
+            happinessFill.style.width = `${happiness}%`;
+            timerFill.style.width = `${(gameTimer / 60) * 100}%`;
+            livesDisplay.innerText = "❤️✖" + lives;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Blackboard
+            ctx.fillStyle = '#1b5e20'; ctx.fillRect(150, 15, 500, 40);
+            ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText("MATH CLASS - DON'T SLEEP", 400, 40);
+
+            // Desks
+            desks.forEach((d, idx) => {
+                ctx.fillStyle = (idx === 0) ? '#8d6e63' : '#5d4037';
+                ctx.strokeStyle = (idx === 0) ? '#ffeb3b' : '#3e2723';
+                ctx.lineWidth = (idx === 0) ? 2 : 1;
+                ctx.fillRect(d.x, d.y, d.width, d.height);
+                ctx.strokeRect(d.x, d.y, d.width, d.height);
+                ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif';
+                ctx.fillText(idx === 0 ? "โต๊ะของคุณ" : "โต๊ะอื่น", d.x + d.width / 2, d.y + d.height / 2 + 4);
+            });
+
+            // Snacks
+            snacks.forEach(s => {
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+                ctx.fillStyle = s.color; ctx.fill(); ctx.strokeStyle = '#000'; ctx.stroke();
+            });
+
+            // Teacher
+            ctx.save(); ctx.translate(teacher.x, teacher.y);
+            ctx.fillStyle = (teacher.state === 'SAFE') ? '#2196f3' : (teacher.state === 'WARNING' ? '#ffeb3b' : '#f44336');
+            ctx.fillRect(-teacher.width / 2, -teacher.height / 2, teacher.width, teacher.height);
+            ctx.fillStyle = teacher.state === 'WARNING' ? '#000' : '#fff'; ctx.font = 'bold 12px sans-serif';
+            ctx.fillText("TEACHER", 0, 4);
+            if (teacher.state === 'WARNING') { ctx.fillStyle = '#f44336'; ctx.font = 'bold 24px sans-serif'; ctx.fillText("!", 0, -32); }
+            else if (teacher.state === 'DANGER') { ctx.fillStyle = '#f44336'; ctx.font = 'bold 11px sans-serif'; ctx.fillText("หันมามอง!", 0, 24); }
+            ctx.restore();
+
+            // Player
+            ctx.save(); ctx.translate(player.x, player.y);
+            ctx.beginPath(); ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = (boredom >= 100) ? '#78909c' : (selectedType === 'junior' ? '#00bcd4' : '#9c27b0');
+            ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = '#000'; ctx.font = 'bold 9px sans-serif';
+            ctx.fillText(selectedType === 'junior' ? "ม.ต้น" : "ม.ปลาย", 0, 3);
+            if (boredom >= 100) { ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.fillText("Zzz...", 0, -player.radius - 4); }
+            else if (isPlayingPhone) { ctx.fillStyle = '#4caf50'; ctx.font = '12px sans-serif'; ctx.fillText("📲", 0, -player.radius - 4); }
+            ctx.restore();
+        }
+    </script>
+
+</body>
+
+</html>
